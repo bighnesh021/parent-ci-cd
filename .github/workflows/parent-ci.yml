@@ -13,9 +13,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v3
-    - run: |
-        mkdir -p /tmp/mule-settings
-        cp settings/settings.xml /tmp/mule-settings/settings.xml
+    - run: mkdir -p /tmp/mule-settings && cp settings/settings.xml /tmp/mule-settings/settings.xml
     - uses: actions/checkout@v3
       with:
         repository: ${{ github.event.client_payload.repo }}
@@ -39,9 +37,7 @@ jobs:
     needs: build
     steps:
     - uses: actions/checkout@v3
-    - run: |
-        mkdir -p /tmp/mule-settings
-        cp settings/settings.xml /tmp/mule-settings/settings.xml
+    - run: mkdir -p /tmp/mule-settings && cp settings/settings.xml /tmp/mule-settings/settings.xml
     - uses: actions/checkout@v3
       with:
         repository: ${{ github.event.client_payload.repo }}
@@ -60,9 +56,7 @@ jobs:
     needs: test
     steps:
     - uses: actions/checkout@v3
-    - run: |
-        mkdir -p /tmp/mule-settings
-        cp settings/settings.xml /tmp/mule-settings/settings.xml
+    - run: mkdir -p /tmp/mule-settings && cp settings/settings.xml /tmp/mule-settings/settings.xml
     - uses: actions/checkout@v3
       with:
         repository: ${{ github.event.client_payload.repo }}
@@ -77,15 +71,15 @@ jobs:
     needs: publish
     steps:
     - uses: actions/checkout@v3
-    - run: |
-        mkdir -p /tmp/mule-settings
-        cp settings/settings.xml /tmp/mule-settings/settings.xml
+    - run: mkdir -p /tmp/mule-settings && cp settings/settings.xml /tmp/mule-settings/settings.xml
     - uses: actions/checkout@v3
       with:
         repository: ${{ github.event.client_payload.repo }}
         token: ${{ secrets.PAT_TOKEN }}
     - run: |
         mvn -B mule:deploy -s /tmp/mule-settings/settings.xml \
+        -Duser="${{ secrets.ANYPNT_USERNAME }}" \
+        -Dpass="${{ secrets.ANYPNT_PASSWORD }}" \
         -Denvironment="${{ github.event.client_payload.environment }}" \
         -DtargetName="${{ github.event.client_payload.targetName }}" \
         -DappName="${{ github.event.client_payload.appName }}" \
