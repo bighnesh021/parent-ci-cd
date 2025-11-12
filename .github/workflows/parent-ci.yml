@@ -12,7 +12,15 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-    - name: Checkout child repo
+    - name: Checkout Parent Repo
+      uses: actions/checkout@v3
+
+    - name: Copy settings.xml
+      run: |
+        mkdir -p /tmp/mule-settings
+        cp settings/settings.xml /tmp/mule-settings/settings.xml
+
+    - name: Checkout Child Repo
       uses: actions/checkout@v3
       with:
         repository: ${{ github.event.client_payload.repo }}
@@ -21,22 +29,20 @@ jobs:
     - name: Set up JDK
       uses: actions/setup-java@v4
       with:
-        distribution: 'temurin'
-        java-version: '17'
-        cache: 'maven'
+        distribution: temurin
+        java-version: 17
+        cache: maven
 
     - name: Build Mule App
       env:
         ANYPNT_USERNAME: ${{ secrets.ANYPNT_USERNAME }}
         ANYPNT_PASSWORD: ${{ secrets.ANYPNT_PASSWORD }}
-      run: |
-        mvn -B clean package -s settings/settings.xml -DskipTests=false
+      run: mvn -B clean package -s /tmp/mule-settings/settings.xml -DskipTests=false
 
     - uses: actions/upload-artifact@v4
       with:
         name: mule-artifact
         path: target/*.jar
-
 
   test:
     runs-on: ubuntu-latest
@@ -56,9 +62,7 @@ jobs:
       env:
         ANYPNT_USERNAME: ${{ secrets.ANYPNT_USERNAME }}
         ANYPNT_PASSWORD: ${{ secrets.ANYPNT_PASSWORD }}
-      run: |
-        mvn -B test -s settings/settings.xml
-
+      run: mvn -B test -s /tmp/mule-settings/settings.xml
 
   publish:
     runs-on: ubuntu-latest
@@ -69,13 +73,16 @@ jobs:
         repository: ${{ github.event.client_payload.repo }}
         token: ${{ secrets.PAT_TOKEN }}
 
+    - name: Copy settings.xml
+      run: |
+        mkdir -p /tmp/mule-settings
+        cp settings/settings.xml /tmp/mule-settings/settings.xml
+
     - name: Publish Artifact to Exchange
       env:
         ANYPNT_USERNAME: ${{ secrets.ANYPNT_USERNAME }}
         ANYPNT_PASSWORD: ${{ secrets.ANYPNT_PASSWORD }}
-      run: |
-        mvn -B deploy -s settings/settings.xml -DskipTests=true
-
+      run: mvn -B deploy -s /tmp/mule-settings/settings.xml -DskipTests=true
 
   deploy:
     runs-on: ubuntu-latest
@@ -86,18 +93,22 @@ jobs:
         repository: ${{ github.event.client_payload.repo }}
         token: ${{ secrets.PAT_TOKEN }}
 
+    - name: Copy settings.xml
+      run: |
+        mkdir -p /tmp/mule-settings
+        cp settings/settings.xml /tmp/mule-settings/settings.xml
+
     - name: Deploy to CloudHub 2.0
       env:
         ANYPNT_USERNAME: ${{ secrets.ANYPNT_USERNAME }}
         ANYPNT_PASSWORD: ${{ secrets.ANYPNT_PASSWORD }}
       run: |
-        mvn -B mule:deploy -s settings/settings.xml \
-          -Denvironment="${{ github.event.client_payload.environment }}" \
-          -DtargetName="${{ github.event.client_payload.targetName }}" \
-          -DappName="${{ github.event.client_payload.appName }}" \
-          -Dreplicas="${{ github.event.client_payload.replicas }}" \
-          -DvCores="${{ github.event.client_payload.vCores }}"
-
+        mvn -B mule:deploy -s /tmp/mule-settings/settings.xml \
+        -Denvironment="${{ github.event.client_payload.environment }}" \
+        -DtargetName="${{ github.event.client_payload.targetName }}" \
+        -DappName="${{ github.event.client_payload.appName }}" \
+        -Dreplicas="${{ github.event.client_payload.replicas }}" \
+        -DvCores="${{ github.event.client_payload.vCores }}"
 
   notify:
     runs-on: ubuntu-latest
@@ -107,7 +118,7 @@ jobs:
     - name: Slack Notification
       run: |
         curl -X POST -H 'Content-type: application/json' \
-        --data '{"text":"🚀 Mule Deployment Completed!\nEnvironment: '${{ github.event.client_payload.environment }}'\nApp: '${{ github.event.client_payload.appName }}'\nStatus: '${{ needs.deploy.result }}'"}' \
+        --data '{"text":"Deployment Completed\nEnvironment: '${{ github.event.client_payload.environment }}'\nApp: '${{ github.event.client_payload.appName }}'\nStatus: '${{ needs.deploy.result }}'"}' \
         ${{ secrets.SLACK_WEBHOOK_URL }}
 
     - name: Email Notification
@@ -122,11 +133,10 @@ jobs:
         from: "Mule CI/CD Pipeline <${{ secrets.EMAIL_USERNAME }}>"
         body: |
           Deployment Report:
-          ------------------------
           Application: ${{ github.event.client_payload.appName }}
           Environment: ${{ github.event.client_payload.environment }}
           Target: ${{ github.event.client_payload.targetName }}
           Replicas: ${{ github.event.client_payload.replicas }}
           vCores: ${{ github.event.client_payload.vCores }}
           Status: ${{ needs.deploy.result }}
-          Triggered By repo: ${{ github.event.client_payload.repo }}
+          Triggered By: ${{ github.event.client_payload.repo }}
